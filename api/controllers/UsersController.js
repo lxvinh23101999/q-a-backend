@@ -118,7 +118,6 @@ module.exports = {
                                     }
                                     return res.ok('Sửa thành công');
                                 });
-
                             });
                         });
 
@@ -149,10 +148,11 @@ module.exports = {
                 else {
                     const comparePassword = await bcryptjs.compare(password, user.password);
                     if (comparePassword) {
-                        let data = { name: user.name, role: user.role };
-                        // req.session.user = data;
-                        // console.log(req.session);
-                        return res.ok(data);
+                        let data = { id: user.id, name: user.name, role: user.role };
+                        return res.cookie('access_token','Bearer ' + jwToken.issue(data), {
+                            maxAge: 600 * 1000,
+                            httpOnly: true
+                          }).ok(jwToken.issue(data));
                     }
                     else {
                         return res.badRequest('Password không đúng !!!');

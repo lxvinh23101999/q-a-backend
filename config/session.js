@@ -38,11 +38,11 @@ module.exports.session = {
   //   // last only for as long as the browser is open.
   //   maxAge: 30*1000,
   //   // Path that the cookie is valid for.
-  //   path: '/',
+  //   // path: '/',
   //   // Should the session cookie be HTTP-only? (See https://www.owasp.org/index.php/HttpOnly)
   //   httpOnly: true,
   //   // Should the session cookie be secure? (only valid for HTTPS sites)
-  //   secure: false
+  //   secure: true
   // },
   /***************************************************************************
   *                                                                          *

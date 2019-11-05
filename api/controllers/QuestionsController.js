@@ -10,7 +10,9 @@ module.exports = {
         try {
             const contentQuestion = req.body.contentQuestion;
             const sessionId = req.body.sessionId;
-            const owner = req.body.owner;
+            const token = req.cookies.access_token.split(' ')[1];
+            const userInfo = jwToken.decoded(token);
+            const owner = userInfo.id;
             if (!contentQuestion || contentQuestion === '') {
                 return res.badRequest('Vui lòng điển đầy đủ thông tin !!!');
             }
@@ -19,7 +21,7 @@ module.exports = {
                     return res.serverError('Database error');
                 }
                 if (question) {
-                    return res.ok('Tạo câu hỏi thành công');
+                    return res.ok({ message: 'Tạo câu hỏi thành công', question: question, nameOfOwner: userInfo.name });
                 }
             });
         } catch (error) {

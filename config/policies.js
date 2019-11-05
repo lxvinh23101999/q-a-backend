@@ -27,7 +27,7 @@ module.exports.policies = {
   ***************************************************************************/
 
   // '*': true,
-  // '*': ['sessionAuth'],
+  // '*': ['isAuthorized'], // Tất cả sẽ bị chặn ở đây
   // 'UsersController': {
   //   '*': true // Chúng ta không cần xác thực tại đây
   // }
