@@ -10,7 +10,9 @@ module.exports = {
         try {
             const contentAnswer = req.body.contentAnswer;
             const questionId = req.body.questionId;
-            const owner = req.body.owner;
+            const token = req.cookies.access_token.split(' ')[1];
+            const userInfo = jwToken.decoded(token);
+            const owner = userInfo.id;
             if (!contentAnswer || contentAnswer === '') {
                 return res.badRequest('Vui lòng điển đầy đủ thông tin !!!');
             }
@@ -19,7 +21,7 @@ module.exports = {
                     return res.serverError('Database error');
                 }
                 if (answer) {
-                    return res.ok('Tạo câu trả lời thành công');
+                    return res.ok({message: 'Tạo câu trả lời thành công', answer: answer, nameOfOwner: userInfo.name});
                 }
             });
         } catch (error) {
@@ -38,6 +40,43 @@ module.exports = {
             return res.serverError('Internal Server Error');
         }
     },
+    getbyquestionid: async (req, res) => {
+        try {
+            const questionId = req.params.id;
+            const token = req.cookies.access_token.split(' ')[1];
+            const userInfo = jwToken.decoded(token); // Người dùng đang đăng nhập
+            let question = await Questions.findOne({id: questionId});
+            if (!question) {
+                return res.badRequest("Không tìm thấy câu hỏi");
+            }
+            let answers = await Answers.find({questionId: questionId})
+            if (answers.length === 0) {
+                return res.ok("Không có câu trả lời");
+            }
+            for (let index = 0; index < answers.length; index++) {
+                let user = await Users.findOne({ id: answers[index].owner });
+                if (user) {
+                    answers[index].nameOfOwner = user.name;
+                    if (user.id === userInfo.id) {
+                        answers[index].editPermission = true;
+                    }
+                    if (user.id === userInfo.id || userInfo.role === "admin" || userInfo.id === question.owner) {
+                        answers[index].deletePermission = true;
+                    }
+                    else answers[index].deletePermission = false;
+                } 
+                else {
+                    answers[index].nameOfOwner = "Không xác định";
+                    if (userInfo.role === "admin" || userInfo.id === question.owner) {
+                        answers[index].deletePermission = true;
+                    }
+                }
+            }
+            return res.ok(answers);
+        } catch (error) {
+            return res.serverError('Internal Server Error');
+        }
+    },
     delete: (req, res) => {
         try {
             const answerId = req.params.id;
@@ -49,21 +88,25 @@ module.exports = {
                     return res.notFound('Không tìm thấy Id câu trả lời');
                 }
                 else {
-                    return res.ok('Xóa câu trả lời thành công');
+                    return res.ok({message: 'Xóa câu trả lời thành công', answers: answers});
                 }
             });
         } catch (error) {
             return res.serverError('Internal Server Error');
         }
     },
-    edit: (req, res) => {
+    edit: async (req, res) => {
         try {
             const answerId = req.params.id;
             const contentAnswer = req.body.contentAnswer;
             if (!contentAnswer || contentAnswer === '') {
                 return res.badRequest('Vui lòng điển đầy đủ thông tin !!!');
             }
-            Answers.update({id: answerId},{ contentAnswer: req.body.contentAnswer }).exec((err, answers) => {
+            let answer = await Answers.findOne({id: answerId});
+            if (answer.contentAnswer === contentAnswer) {
+                return res.badRequest('Vui lòng sửa lại câu trả lời !!!');
+            }
+            await Answers.update({id: answerId},{ contentAnswer: req.body.contentAnswer }).exec((err, answers) => {
                 if (err) {
                     return res.serverError('Database error');
                 }
@@ -71,7 +114,7 @@ module.exports = {
                     return res.notFound('Không tìm thấy Id câu hỏi');
                 }
                 else {
-                    return res.ok('Sửa thành công');
+                    return res.ok({message: 'Sửa thành công', answer: answers[0]});
                 }
             });
         } catch (error) {

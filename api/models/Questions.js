@@ -10,7 +10,7 @@ module.exports = {
   attributes: {
     id: {
       primaryKey: true,
-      type: 'interger',
+      type: 'integer',
       autoIncrement: true
     },
     contentQuestion: {

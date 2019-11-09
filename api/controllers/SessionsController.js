@@ -63,13 +63,15 @@ module.exports = {
     getbyid: async (req, res) => {
         try {
             const sessionId = req.params.id;
+            const token = req.cookies.access_token.split(' ')[1];
+            const userInfo = jwToken.decoded(token); // Người dùng đang đăng nhập
             let session = await Sessions.findOne({ id: sessionId }).populate('questions');
             if (!session) {
                 return res.badRequest('Không tìm thấy id phiên hỏi đáp');
             }
-            let user = await Users.findOne({ id: session.owner });
-            if (user) {
-                session.nameOfOwner = user.name;
+            let sessionCreater = await Users.findOne({ id: session.owner }); // Người tạo phiên hỏi đáp
+            if (sessionCreater) {
+                session.nameOfOwner = sessionCreater.name;
             }
             else {
                 session.nameOfOwner = "Không xác định";
@@ -78,7 +80,17 @@ module.exports = {
                 let user = await Users.findOne({ id: session.questions[index].owner });
                 if (user) {
                     session.questions[index].nameOfOwner = user.name;
-                } else session.questions[index].nameOfOwner = "Không xác định";
+                    if (user.id === userInfo.id || userInfo.role === "admin" || userInfo.id === sessionCreater.id) {
+                        session.questions[index].deletePermission = true;
+                    }
+                    else session.questions[index].deletePermission = false;
+                } 
+                else {
+                    session.questions[index].nameOfOwner = "Không xác định";
+                    if (userInfo.role === "admin" || userInfo.id === sessionCreater.id) {
+                        session.questions[index].deletePermission = true;
+                    }
+                }
                 let answers = await Answers.find({ questionId: session.questions[index].id });
                 session.questions[index].numberOfAnswers = answers.length;
             }
