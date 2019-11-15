@@ -29,23 +29,13 @@ module.exports = {
                     return res.badRequest('Username đã tồn tại !!!');
                 }
                 else {
-                    bcryptjs.genSalt(10, async (err, salt) => {
+                    Users.create({ name: name, username: username, password: password, role: role }).exec((err, user) => {
                         if (err) {
-                            return res.serverError("Có lỗi xảy ra");
+                            return res.serverError('Database error');
                         }
-                        bcryptjs.hash(req.body.password, salt, (err, hash) => {
-                            if (err) {
-                                return res.serverError("Có lỗi xảy ra");
-                            }
-                            Users.create({ name: req.body.name, username: req.body.username, password: hash, role: req.body.role }).exec((err, user) => {
-                                if (err) {
-                                    return res.serverError('Database error');
-                                }
-                                if (user) {
-                                    return res.ok({ message: 'Tạo tài khoản thành công', user: user });
-                                }
-                            });
-                        });
+                        if (user) {
+                            return res.ok({ message: 'Tạo tài khoản thành công', user: user });
+                        }
                     });
                 }
             });
@@ -87,7 +77,7 @@ module.exports = {
         try {
             const userId = req.params.id;
             // Cần phải xác nhận admin ở bước này 
-            Users.findOne({ id: userId }).exec(async (err, user) => {
+            Users.findOne({ id: userId }).exec((err, user) => {
                 if (err) {
                     return res.serverError('Database error');
                 }
@@ -95,21 +85,12 @@ module.exports = {
                     return res.notFound('Không tìm thấy Id người dùng');
                 }
                 else {
-                    bcryptjs.genSalt(10, (err, salt) => {
+                    console.log(user.username);
+                    Users.update({ id: userId }, { password: user.username }).exec((err, users) => {
                         if (err) {
-                            return res.serverError("Có lỗi xảy ra");
+                            return res.serverError('Database error');
                         }
-                        bcryptjs.hash(user.username, salt, (err, hash) => { // Lấy tên đăng nhập làm mật khẩu
-                            if (err) {
-                                return res.serverError("Có lỗi xảy ra");
-                            }
-                            Users.update({ id: userId }, { password: hash }).exec((err, users) => {
-                                if (err) {
-                                    return res.serverError('Database error');
-                                }
-                                return res.ok('Đặt lại mật khẩu thành công');
-                            });
-                        });
+                        return res.ok('Đặt lại mật khẩu thành công');
                     });
                 }
             });
@@ -121,7 +102,7 @@ module.exports = {
         try {
             const userId = req.params.id;
             // Cần phải xác nhận admin ở bước này 
-            Users.findOne({id: userId}).exec((err, user) => {
+            Users.findOne({ id: userId }).exec((err, user) => {
                 if (err) {
                     return res.serverError('Database error');
                 }
@@ -135,9 +116,9 @@ module.exports = {
                     let role = user.role === "master" ? "student" : "master";
                     Users.update({ id: userId }, { role: role }).exec((err, users) => {
                         if (err) {
-                            return res.serverError('Database error');
+                            return res.serverError(err);
                         }
-                        return res.ok({message: 'Đổi vai trò thành công', role: role});
+                        return res.ok({ message: 'Đổi vai trò thành công', role: role });
                     });
                 }
             });
@@ -166,25 +147,28 @@ module.exports = {
                         return res.badRequest('Mật khẩu cũ không đúng');
                     }
                     else {
-                        bcryptjs.genSalt(10, (err, salt) => {
+                        Users.update({ id: userId }, { password: newPassword }).exec((err, users) => {
                             if (err) {
-                                return res.serverError("Có lỗi xảy ra");
+                                return res.serverError('Database error');
                             }
-                            bcryptjs.hash(req.body.newPassword, salt, (err, hash) => {
-                                if (err) {
-                                    return res.serverError("Có lỗi xảy ra");
-                                }
-                                Users.update({ id: userId }, { password: hash }).exec((err, users) => {
-                                    if (err) {
-                                        return res.serverError('Database error');
-                                    }
-                                    return res.ok('Sửa thành công');
-                                });
-                            });
+                            return res.ok('Đổi mật khẩu thành công');
                         });
-
                     }
                 }
+            });
+        } catch (error) {
+            return res.serverError('Internal Server Error');
+        }
+    },
+    getUserById: (req, res) => {
+        try {
+            const token = req.cookies.access_token.split(' ')[1];
+            const userInfo = jwToken.decoded(token); // Người dùng đang đăng nhập
+            Users.findOne({id: userInfo.id}).populate('questions').populate('answers').exec((err, user) => {
+                if (err) {
+                    return res.badRequest('Không tìm thấy Id người dùng');
+                }
+                return res.ok(user);
             });
         } catch (error) {
             return res.serverError('Internal Server Error');
@@ -239,17 +223,17 @@ module.exports = {
                 if (token) {
                     jwt.verify(token, tokenSecret, (err, decoded) => {
                         if (err) {
-                            return res.badRequest({ status: 'notLogged', userInfo: '' });
+                            return res.badRequest(false);
                         }
-                        return res.ok({ status: 'isLogged', userInfo: decoded });
+                        return res.ok(true);
                     });
                 }
                 else {
-                    return res.badRequest({ status: 'notLogged', userInfo: '' });
+                    return res.badRequest(false);
                 }
             }
             else {
-                return res.badRequest({ status: 'notLogged', userInfo: '' });
+                return res.badRequest(false);
             }
         } catch (error) {
             return res.serverError('Internal Server Error');

@@ -27,10 +27,10 @@ module.exports.policies = {
   ***************************************************************************/
 
   // '*': true,
-  // '*': ['isAuthorized'], // Tất cả sẽ bị chặn ở đây
-  // 'UsersController': {
-  //   '*': true // Chúng ta không cần xác thực tại đây
-  // }
+  '*': ['isAuthorized'], // Tất cả sẽ bị chặn ở đây
+  'UsersController': {
+    '*': true // Chúng ta không cần xác thực tại đây
+  }
 
   /***************************************************************************
   *                                                                          *
