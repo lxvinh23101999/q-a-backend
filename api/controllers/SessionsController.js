@@ -4,7 +4,7 @@
  * @description :: Server-side logic for managing sessions
  * @help        :: See http://sailsjs.org/#!/documentation/concepts/Controllers
  */
-
+const bcryptjs = require('bcryptjs');
 module.exports = {
     create: (req, res) => {
         try {
@@ -22,16 +22,16 @@ module.exports = {
                 return res.badRequest('Vui lòng điển đầy đủ thông tin !!!');
             }
             if (closedAt) {
-                if (new Date(closedAt).getTime() - Date.now() < 5*60*1000) { // ngày đóng phải hơn tối thiểu 5 phút so với hiện tại
-                    return res.badRequest(`Ngày đóng phải lớn hơn ${(new Date(Date.now() + 5*60*1000)).toLocaleString()}`);
+                if (new Date(closedAt).getTime() - Date.now() < 5 * 60 * 1000) { // ngày đóng phải hơn tối thiểu 5 phút so với hiện tại
+                    return res.badRequest(`Ngày đóng phải lớn hơn ${(new Date(Date.now() + 5 * 60 * 1000)).toLocaleString()}`);
                 }
             }
-            Sessions.create({ topic: topic, description: description, password: password, closedAt: closedAt, owner: owner }).exec((err, session) => {
+            Sessions.create({ topic: topic, description: description, password: password, closedAt: closedAt, owner: owner, joinUsers: [userInfo.id] }).exec((err, session) => {
                 if (err) {
                     return res.serverError('Database error');
                 }
                 if (session) {
-                    return res.ok({ message: 'Tạo phiên hỏi đáp thành công', session: session, nameOfOwner: userInfo.name });
+                    return res.ok({ message: 'Tạo phiên hỏi đáp thành công', session: session, nameOfOwner: userInfo.name, owner: userInfo.id });
                 }
             });
         } catch (error) {
@@ -66,26 +66,32 @@ module.exports = {
                     }
                 }
             }
-            return res.ok(sessions);
+            return res.ok({ sessions: sessions, userInfo: userInfo });
         } catch (error) {
             return res.serverError('Internal Server Error');
         }
     },
-    checkHasPassword: (req, res) => {
+    listbyadmin: async (req, res) => {
         try {
-            const sessionId = req.params.id;
-            Sessions.findOne({ id: sessionId }).exec((err, session) => {
-                if (err) {
-                    return res.serverError('Database error');
+            let sessions = await Sessions.find();
+            const token = req.cookies.access_token.split(' ')[1];
+            const userInfo = jwToken.decoded(token); // Người dùng đang đăng nhập
+            if (userInfo.role !== "admin") {
+                return res.badRequest({ message: "Bạn không thể truy cập vào trang này" });
+            }
+            if (!sessions) {
+                return res.ok("Không có phiên nào");
+            }
+            for (let index = 0; index < sessions.length; index++) {
+                let user = await Users.findOne({ id: sessions[index].owner });
+                if (user) {
+                    sessions[index].nameOfOwner = user.name;
                 }
-                if (!session) {
-                    return res.badRequest('Không tìm thấy Id phiên hỏi đáp');
+                else {
+                    sessions[index].nameOfOwner = "Không xác định";
                 }
-                if (!session.password) {
-                    return res.ok({ hasSessionPassword: false });
-                }
-                return res.ok({ hasSessionPassword: true });
-            });
+            }
+            return res.ok({ sessions: sessions, userInfo: userInfo });
         } catch (error) {
             return res.serverError('Internal Server Error');
         }
@@ -99,6 +105,9 @@ module.exports = {
             if (!session) {
                 return res.badRequest('Không tìm thấy id phiên hỏi đáp');
             }
+            if (!session.joinUsers.includes(userInfo.id) && session.password) {
+                return res.ok({ message: 'Bạn cần nhập mật khẩu để tiếp tục', isJoined: false });
+            }
             let sessionCreater = await Users.findOne({ id: session.owner }); // Người tạo phiên hỏi đáp
             if (sessionCreater) {
                 session.nameOfOwner = sessionCreater.name;
@@ -107,6 +116,10 @@ module.exports = {
                 session.nameOfOwner = "Không xác định";
             }
             for (let index = 0; index < session.questions.length; index++) {
+                if (session.questions[index].likeUsers && session.questions[index].likeUsers.includes(userInfo.id)) {
+                    session.questions[index].isLiked = true;
+                }
+                else session.questions[index].isLiked = false;
                 let user = await Users.findOne({ id: session.questions[index].owner });
                 if (user) {
                     session.questions[index].nameOfOwner = user.name;
@@ -124,7 +137,44 @@ module.exports = {
                 let answers = await Answers.find({ questionId: session.questions[index].id });
                 session.questions[index].numberOfAnswers = answers.length;
             }
-            return res.ok(session);
+            return res.ok({ message: "Tham gia phiên hỏi đáp thành công", session: session, isJoined: true });
+        } catch (error) {
+            return res.serverError('Internal Server Error');
+        }
+    },
+    joinsession: (req, res) => {
+        try {
+            const id = req.params.id;
+            const password = req.body.password;
+            const token = req.cookies.access_token.split(' ')[1];
+            const userInfo = jwToken.decoded(token); // Người dùng đang đăng nhập
+            if (!password || password === '') {
+                return res.badRequest('Vui lòng nhập mật khẩu !!!');
+            }
+            Sessions.findOne({ id: id }, async (err, session) => {
+                if (err) {
+                    return res.serverError('Database error');
+                }
+                else if (!session) {
+                    return res.badRequest('Không tìm thấy phiên hỏi đáp');
+                }
+                else {
+                    const comparePassword = await bcryptjs.compare(password, session.password);
+                    if (comparePassword) {
+                        let joinUsers = session.joinUsers;
+                        joinUsers.push(userInfo.id);
+                        Sessions.update({id: id}, {joinUsers: joinUsers}).exec((err, sessions) => {
+                            if (err) {
+                                return res.serverError('Database error');
+                            }
+                            return res.ok({message: 'Tham gia phiên hỏi đáp thành công', isJoined: true});
+                        });
+                    }
+                    else {
+                        return res.badRequest('Mật khẩu không đúng !!!');
+                    }
+                }
+            });
         } catch (error) {
             return res.serverError('Internal Server Error');
         }
@@ -168,7 +218,7 @@ module.exports = {
             const date = new Date(closedAt);
             // console.log(date instanceof Date && !isNaN(date));
             if (date instanceof Date && !isNaN(date)) {
-                if (new Date(date).getTime() - Date.now() < 5*60*1000) {
+                if (new Date(date).getTime() - Date.now() < 5 * 60 * 1000) {
                     return res.badRequest("Phiên hỏi đáp phải được mở tối thiểu 5 phút")
                 }
                 Sessions.update({ id: id }, { closedAt: date }).exec((err, session) => {

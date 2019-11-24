@@ -5,7 +5,7 @@ module.exports.issue = function(payload) {
     payload,
     tokenSecret,
     {
-        expiresIn : '1h' // Thời gian sống của token
+        expiresIn : "10m" // Thời gian sống của token
     });
 };
  

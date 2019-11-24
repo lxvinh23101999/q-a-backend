@@ -13,9 +13,6 @@ module.exports = {
       type: 'integer',
       autoIncrement: true
     },
-    password: {
-      type: 'string'
-    },
     topic: {
       type: 'string'
     },
@@ -24,6 +21,13 @@ module.exports = {
     },
     closedAt: {
       type: 'datetime'
+    },
+    password: {
+      type: 'string',
+    },
+    joinUsers: {
+      type: 'array',
+      defaultsTo: []
     },
     owner: {
       model: 'users'

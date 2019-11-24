@@ -45,6 +45,11 @@ module.exports = {
     },
     list: (req, res) => {
         try {
+            const token = req.cookies.access_token.split(' ')[1];
+            const userInfo = jwToken.decoded(token); // Người dùng đang đăng nhập
+            if (userInfo.role !== "admin") {
+                return res.badRequest({message: "Bạn không thể truy cập vào trang này"});
+            }
             Users.find().exec((err, users) => {
                 if (err) {
                     return res.serverError('Database error');
@@ -196,7 +201,7 @@ module.exports = {
                     if (comparePassword) {
                         let data = { id: user.id, name: user.name, role: user.role };
                         return res.cookie('access_token', 'Bearer ' + jwToken.issue(data), {
-                            maxAge: 6 * 600 * 1000,
+                            maxAge: 10*60*1000,
                             httpOnly: true
                         }).ok(data);
                     }
@@ -213,30 +218,7 @@ module.exports = {
         try {
             res.clearCookie('access_token').ok('Logout thành công');
         } catch (error) {
-            return res.serverError('Internal Server Error');
-        }
-    },
-    checkLogged: (req, res) => {
-        try {
-            if (req.cookies && req.cookies.access_token) {
-                const token = req.cookies.access_token.split(' ')[1];
-                if (token) {
-                    jwt.verify(token, tokenSecret, (err, decoded) => {
-                        if (err) {
-                            return res.badRequest(false);
-                        }
-                        return res.ok(true);
-                    });
-                }
-                else {
-                    return res.badRequest(false);
-                }
-            }
-            else {
-                return res.badRequest(false);
-            }
-        } catch (error) {
-            return res.serverError('Internal Server Error');
+            return res.serverError('Có lỗi xảy ra');
         }
     }
 };

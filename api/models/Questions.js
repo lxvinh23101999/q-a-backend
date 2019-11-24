@@ -16,6 +16,9 @@ module.exports = {
     contentQuestion: {
       type: 'string'
     },
+    likeUsers: {
+      type: 'array',
+    },
     answers: {
       collection: 'answers',
       via: 'questionId'
