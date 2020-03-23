@@ -18,6 +18,9 @@ module.exports = {
             if (!contentQuestion || contentQuestion === '' || !typeQuestion || typeQuestion === '') {
                 return res.badRequest('Vui lòng điển đầy đủ thông tin !!!');
             }
+            if (selections.length === 0) {
+                return res.badRequest('Phải có tối thiểu 1 đáp án');
+            }
             let surveyQuestion = await SurveyQuestions.create({
                 contentQuestion: contentQuestion,
                 typeQuestion: typeQuestion,
@@ -57,6 +60,13 @@ module.exports = {
             }
             if (!survey.joinUsers.includes(userInfo.id) && survey.password) {
                 return res.ok({ message: 'Bạn cần nhập mật khẩu để tiếp tục', isJoined: false });
+            }
+            let user = await Users.findOne({ id: survey.owner});
+            if (!user) {
+                survey.nameOfOwner = "Không xác định";
+            }
+            else {
+                survey.nameOfOwner = user.name;
             }
             isOwner = (survey.owner === userInfo.id);
             await SurveyQuestions.find({ surveyId: surveyId }).populate('selections').exec((err, surveyQuestions) => {

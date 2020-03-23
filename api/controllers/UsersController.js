@@ -48,7 +48,7 @@ module.exports = {
             const token = req.cookies.access_token.split(' ')[1];
             const userInfo = jwToken.decoded(token); // Người dùng đang đăng nhập
             if (userInfo.role !== "admin") {
-                return res.badRequest({message: "Bạn không thể truy cập vào trang này"});
+                return res.badRequest({ message: "Bạn không thể truy cập vào trang này" });
             }
             Users.find().exec((err, users) => {
                 if (err) {
@@ -169,7 +169,7 @@ module.exports = {
         try {
             const token = req.cookies.access_token.split(' ')[1];
             const userInfo = jwToken.decoded(token); // Người dùng đang đăng nhập
-            Users.findOne({id: userInfo.id}).populate('questions').populate('answers').exec((err, user) => {
+            Users.findOne({ id: userInfo.id }).populate('questions').populate('answers').exec((err, user) => {
                 if (err) {
                     return res.badRequest('Không tìm thấy Id người dùng');
                 }
@@ -201,7 +201,7 @@ module.exports = {
                     if (comparePassword) {
                         let data = { id: user.id, name: user.name, role: user.role };
                         return res.cookie('access_token', 'Bearer ' + jwToken.issue(data), {
-                            maxAge: 10*60*1000,
+                            maxAge: 60 * 60 * 1000,
                             httpOnly: true
                         }).ok(data);
                     }
@@ -217,6 +217,29 @@ module.exports = {
     logout: (req, res) => {
         try {
             res.clearCookie('access_token').ok('Logout thành công');
+        } catch (error) {
+            return res.serverError('Có lỗi xảy ra');
+        }
+    },
+    uploadAvatar: (req, res) => {
+        try {
+            const token = req.cookies.access_token.split(' ')[1];
+            const userInfo = jwToken.decoded(token); // Người dùng đang đăng nhập
+            req.file('avatar').upload({
+                dirname: require('path').resolve(sails.config.appPath, 'assets/images/avatar'), saveAs: userInfo.id + '.jpg'
+            }, (err, uploadedFiles) => {
+                if (err) {
+                    res.send(error);
+                } else {
+                    console.log(uploadedFiles[0].type);
+                    const typeFile = uploadedFiles[0].type;
+                    Student.findOne({ id: id }).exec(async function (err, student) {
+                        await Student.update({ id: id }, { avatar: uploadedFiles[0].fd });
+                        const path = '/student/avatar/' + id;
+                        res.redirect(path);
+                    })
+                }
+            });
         } catch (error) {
             return res.serverError('Có lỗi xảy ra');
         }
