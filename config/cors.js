@@ -73,5 +73,5 @@ module.exports.cors = {
   *                                                                          *
   ***************************************************************************/
 
-  headers: 'content-type,Authorization'
+  headers: 'content-type,Authorization,x-xsrf-token'
 };
