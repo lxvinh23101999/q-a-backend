@@ -20,7 +20,7 @@
     "grunt-sails-linker": "~0.10.1",
     "grunt-sync": "^0.8.2",
     "include-all": "^1.0.0",
-    "jsonwebtoken": "^8.5.1",
+    "jsonwebtoken": "^9.0.0",
     "lodash": "^4.17.15",
     "rc": "^1.2.8",
     "sails": "~0.12.14",
